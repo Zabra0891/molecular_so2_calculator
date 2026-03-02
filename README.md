@@ -1,6 +1,8 @@
 # so2_mol — Molecular SO₂ (H₂SO₃) calculator for wine
 
-A small, dependency-free Python module to estimate **molecular SO₂** from **free SO₂**, **pH**, **temperature**, **alcoholic strength**, and **ionic strength**, following the **OIV Type IV “molecular method”** approach.
+A small, dependency-free Python module to estimate **molecular SO₂** from **free SO₂**, **pH**, **temperature**, and **alcoholic strength (ABV)**, using the **OIV Type IV “molecular method”** relationship for the molecular fraction.
+
+> Note: **ionic strength (`I`) is currently a global constant in the code** (default `I = 0.056`). To use a different ionic strength (e.g., 0.038), edit the `I` value in `main.py`.
 
 ---
 
@@ -9,16 +11,16 @@ A small, dependency-free Python module to estimate **molecular SO₂** from **fr
 ### Outputs (typical)
 - **Molecular SO₂ (mg/L)** — the antimicrobial-active fraction (H₂SO₃).
 - **Molecular SO₂ (%)** of free SO₂.
-- Intermediate values for traceability (e.g., **pKₜ**, **pKₘ**, coefficients **A** and **B**, etc.).
+- Intermediate values for traceability (e.g., **pKₜ**, **pKₘ**, coefficients **A** and **B**).
 
 ### Why it matters (oenology)
-Molecular SO₂ is the biologically active form of free SO₂; at a fixed free SO₂, **pH** has the strongest impact on the molecular fraction, while **temperature**, **ABV**, and **ionic strength** shift the effective dissociation constant and therefore the molecular percentage.
+Molecular SO₂ is the biologically active form of free SO₂. At fixed free SO₂, **pH** has the strongest impact on the molecular fraction, while **temperature**, **ABV**, and **ionic strength** shift the effective dissociation constant and therefore the molecular percentage.
 
 ---
 
 ## Scientific model (equations)
 
-This implementation follows the OIV “molecular method” relationships:
+This implementation follows the OIV “molecular method” relationships.
 
 ### 1) Molecular fraction of free SO₂
 \[
@@ -38,31 +40,31 @@ pK_M = pK_T - \frac{A\sqrt{I}}{1 + B\sqrt{I}}
 - \(I\) = ionic strength  
 - \(A, B\) vary with **temperature** and **alcoholic strength**
 
+> Implementation note: `pK_T`, `A`, and `B` are computed via quadratic models (coefficients embedded in `main.py`) to avoid lookup tables.
+
 ---
 
-## Input parameters
+## Input parameters (current API)
 
 | Parameter | Unit | Typical range | Notes |
 |---|---:|---:|---|
-| `pH` | – | 2.8–4.0 | Major driver of molecular fraction |
 | `free_so2` | mg/L | 0–80 | “Free SO₂” as measured analytically |
-| `temp_c` | °C | 0–40 | Use wine bulk/storage temperature |
-| `abv` | % v/v | 0–20 | Alcoholic strength |
-| `ionic_strength` | mol/L | ~0.016–0.056 | Often approximated as **0.038** |
+| `pH` | – | 2.8–4.0 | Major driver of molecular fraction |
+| `temp` | °C | 0–40 | Use wine bulk/storage temperature |
+| `alc` | % v/v | 0–20 | Alcoholic strength (ABV) |
+| `I` | – | ~0.016–0.056 | **Global constant** in code (`I = 0.056`) |
 
 ---
 
-## Project structure (recommended)
+## Project structure
 
-You can keep the repository minimal. A typical layout is:
+Current (simple) layout:
 
 ```
 so2_mol/
 ├─ README.md
 ├─ .gitignore
-└─ src/
-   ├─ __init__.py
-   └─ main.py        # your functions / calculations
+└─ main.py      # functions + script entry point
 ```
 
 ---
@@ -70,7 +72,20 @@ so2_mol/
 ## Requirements
 
 - Python **3.10+**
-- No external dependencies (standard library only, e.g. `math`)
+- No external dependencies (standard library only: `math`)
+
+> On many Linux distributions the command is `python3` (not `python`).
+
+---
+
+## API (functions)
+
+The module exposes these main building blocks:
+- `pKt_quad(temp, alc)` → computes pKₜ (quadratic model)
+- `A_quad(temp, alc)` / `B_quad(temp, alc)` → coefficients A and B (quadratic models)
+- `ionic_ratio(temp, alc)` → ionic correction term
+- `pKm(temp, alc)` → corrected pKₘ
+- `mol_SO2(free_so2, pH, temp, alc)` → **molecular SO₂ (mg/L)**
 
 ---
 
@@ -78,53 +93,64 @@ so2_mol/
 
 ### Option A — import and call functions (recommended)
 
-Example (adapt names to your module/function names):
-
 ```python
-from src.main import molecular_so2_mg_l
+from main import mol_SO2, pKm, I
 
-mso2 = molecular_so2_mg_l(
-    pH=3.10,
-    free_so2=30.0,     # mg/L
-    temp_c=20.0,       # °C
-    abv=12.5,          # % v/v
-    ionic_strength=0.038
-)
+free_so2 = 30.0   # mg/L
+pH = 3.10
+temp = 20.0       # °C
+alc = 12.5        # % v/v
+
+mso2 = mol_SO2(free_so2, pH, temp, alc)
 
 print(f"Molecular SO2: {mso2:.3f} mg/L")
+print(f"Molecular % of free: {100 * mso2 / free_so2:.2f}%")
+print(f"pKm: {pKm(temp, alc):.4f}")
+print(f"I (ionic strength): {I:.3f}")
+```
+
+One-liner from the terminal (run from the project root):
+
+```bash
+python3 -c "from main import mol_SO2; print(mol_SO2(30.0, 3.10, 20.0, 12.5))"
 ```
 
 ### Option B — run as a script
 
-If `src/main.py` includes a `main()` entry point:
+`main.py` includes a script entry point (`if __name__ == '__main__':`), so you can run:
 
 ```bash
-python src/main.py
+python3 main.py
 ```
+
+Edit the example values at the bottom of `main.py` to match your wine parameters.
 
 ---
 
 ## Validation checklist
 
 To verify results:
-- Compare computed molecular % or mg/L against **OIV Table III** for the same **pH**, **T**, **ABV**, and \(I=0.038\).
-- If you compare with online calculators, ensure they use the same **pK model** and the same ionic strength assumption; different choices can produce different mSO₂ values.
+- Compare computed molecular SO₂ (mg/L) or molecular % against OIV reference tables for the same **pH**, **T**, **ABV**, and ionic strength \(I\).
+- If you compare with online calculators, ensure they use the same **pK model** and the same ionic strength assumption; different choices can produce different results.
 
 ---
 
 ## Glossary (quick IT concepts)
 
 - **Module**: a Python file (`.py`) that provides reusable code you can `import`.
-- **API (Application Programming Interface)**: the public “surface” of functions/classes you expose for others (or yourself) to call.
-- **CLI (Command Line Interface)**: a program you run from the terminal with arguments (you can add this later with `argparse`).
+- **Entry point**: the section guarded by `if __name__ == "__main__":` that runs only when the file is executed as a script.
+- **API (Application Programming Interface)**: the public “surface” of functions you expose for others (or yourself) to call.
 
 ---
 
 ## References / Sources
 
-- OIV Compendium method: *OIV-MA-AS323-04C — Sulfur dioxide (molecular method), Type IV method*.  
-  (Equations for \(mSO_2\) and the \(pK_M\) correction; plus reference tables.)
-- AWRI technical note: *Understanding molecular SO₂ calculators* (discussion of mSO₂ equation and why calculators differ).
+- OIV Compendium method (Type IV): **OIV-MA-AS323-04C — Sulfur dioxide (molecular method)**  
+  https://www.oiv.int/de/node/2091/download/pdf
+- Python documentation: `__main__` (top-level code environment)  
+  https://docs.python.org/3/library/__main__.html
+- Python documentation: import system (modules/packages)  
+  https://docs.python.org/3/reference/import.html
 
 ---
 
