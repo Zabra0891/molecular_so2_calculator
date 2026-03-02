@@ -83,3 +83,26 @@ def mol_SO2(free_so2, pH, temp, alc):
     """Compute molecular SO2 from free SO2 using pH and pKm (temperature/alcohol dependent)."""
     pkm_value = pKm(temp, alc)
     return free_so2 / (1 + (10 ** (pH - pkm_value)))
+
+# Script mode
+
+if __name__ == "__main__":
+    # Example run (edit these values as needed)
+    free_so2 = 30.0   # mg/L
+    pH = 3.10
+    temp = 20.0       # °C
+    alc = 12.5        # % v/v
+
+    mso2 = mol_SO2(free_so2, pH, temp, alc)
+    pkm_val = pKm(temp, alc)
+    mol_percent = (100.0 * mso2 / free_so2) if free_so2 != 0 else 0.0
+
+    print("=== Molecular SO2 calculator ===")
+    print(f"Free SO2:             {free_so2:.2f} mg/L")
+    print(f"pH:                   {pH:.2f}")
+    print(f"Temperature:          {temp:.1f} °C")
+    print(f"Alcohol (ABV):        {alc:.1f} % v/v")
+    print(f"Ionic strength (I):   {I:.3f}")
+    print(f"pKm:                  {pkm_val:.4f}")
+    print(f"Molecular SO2:        {mso2:.3f} mg/L")
+    print(f"Molecular % of free:  {mol_percent:.2f}%")
