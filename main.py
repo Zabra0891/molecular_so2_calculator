@@ -1,26 +1,28 @@
 import math
+from dataclasses import dataclass
 
-# Global constants (model coefficients)
-N1 = 0.655664
-N2 = 0.0698386
-N3 = 0.02015
-N4 = 0.000621693
-M1 = 0.482724
-M2 = 0.00883782
-M3 = 0.004437521
-M4 = 0.00000595973
-M5 = 0.0000489638
-Q1 = 1.61645
-Q2 = 0.000935347
-Q3 = 0.000479931
-Q4 = 0.00000492357
-Q5 = 0.0000315093
+@dataclass(frozen=True, slots=True)
+class Config:
+    N1: float = 0.655664
+    N2: float = 0.0698386
+    N3: float = 0.02015
+    N4: float = 0.000621693
+    M1: float = 0.482724
+    M2: float = 0.00883782
+    M3: float = 0.004437522
+    M4: float = 0.00000595973
+    M5: float = 0.0000489638
+    Q1: float = 1.61645
+    Q2: float = 0.000935347
+    Q3: float = 0.000479931
+    Q4: float = 0.00000492357
+    Q5: float = 0.0000315093
+    ionic_strength: float = 0.056
 
-IONIC_STRENGTH = 0.056  # Ionic strength (I), used for ionic correction
+CFG = Config()
 
 
-# Input handling
-def control_input():
+def control_input() -> tuple[float, float, float, float]:
     """
     Collect and validate user inputs:
     - free_so2: free SO2 in mg/L, allowed range [0, 80]
@@ -94,49 +96,48 @@ def control_input():
     return free_so2, ph, temp, alc
 
 
-# Thermodynamic / model functions
-def pKt_quad(temp, alc):
-    return N1 + (N2 * temp) + (N3 * alc) - (N4 * (temp ** 2))
+def pKt_quad(temp: float, alc: float, cfg: Config = CFG) -> float:
+    return cfg.N1 + (cfg.N2 * temp) + (cfg.N3 * alc) - (cfg.N4 * (temp ** 2))
 
-def A_quad(temp, alc):
+def A_quad(temp: float, alc: float, cfg: Config = CFG) -> float:
     return (
-        M1
-        + (M2 * temp)
-        + (M3 * alc)
-        + (M4 * (temp ** 2))
-        + (M5 * (alc ** 2))
+        cfg.M1
+        + (cfg.M2 * temp)
+        + (cfg.M3 * alc)
+        + (cfg.M4 * (temp ** 2))
+        + (cfg.M5 * (alc ** 2))
     )
 
-def B_quad(temp, alc):
+def B_quad(temp: float, alc: float, cfg: Config = CFG) -> float:
     return (
-        Q1
-        + (Q2 * temp)
-        + (Q3 * alc)
-        + (Q4 * (temp ** 2))
-        + (Q5 * (alc ** 2))
+        cfg.Q1
+        + (cfg.Q2 * temp)
+        + (cfg.Q3 * alc)
+        + (cfg.Q4 * (temp ** 2))
+        + (cfg.Q5 * (alc ** 2))
     )
 
-def ionic_ratio(temp, alc):
-    coeff_a = A_quad(temp, alc)
-    coeff_b = B_quad(temp, alc)
-    sqrt_i = math.sqrt(IONIC_STRENGTH)
+def ionic_ratio(temp: float, alc: float, cfg: Config = CFG) -> float:
+    coeff_a = A_quad(temp, alc, cfg)
+    coeff_b = B_quad(temp, alc, cfg)
+    sqrt_i = math.sqrt(cfg.ionic_strength)
     return (coeff_a * sqrt_i) / (1 + coeff_b * sqrt_i)
 
-def pKm(temp, alc):
-    dissociation = pKt_quad(temp, alc)
-    ratio = ionic_ratio(temp, alc)
+def pKm(temp: float, alc: float, cfg: Config = CFG) -> float:
+    dissociation = pKt_quad(temp, alc, cfg)
+    ratio = ionic_ratio(temp, alc, cfg)
     return dissociation - ratio
 
-def mol_SO2(free_so2, ph, temp, alc):
-    pkm_value = pKm(temp, alc)
-    return free_so2 / (1 + (10 ** (ph - pkm_value)))
+def mol_SO2(free_so2: float, ph: float, temp: float, alc: float, cfg: Config = CFG) -> float:
+    pkm_value = pKm(temp, alc, cfg)
+    return free_so2 / (1.0 + (10.0 ** (ph - pkm_value)))
 
 
-# Script entry point
-def main():
+def main() -> None:
     free_so2, ph, temp, alc = control_input()
     result = mol_SO2(free_so2, ph, temp, alc)
     print(f"Molecular SO2: {result:.3f} mg/L")
 
 if __name__ == "__main__":
     main()
+    
