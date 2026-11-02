@@ -1,3 +1,4 @@
+# Source: Jenkins et al., DOI 10.5344/ajev.2020.19052, uploaded Papers in Press, pp. 6-7, Eqs. 1-5.
 import math
 from dataclasses import dataclass
 
@@ -8,13 +9,13 @@ class Config:
     N3: float = 0.02015
     N4: float = 0.000621693
     M1: float = 0.482724
-    M2: float = 0.00883782
-    M3: float = 0.004437522
+    M2: float = 0.000883782
+    M3: float = 0.00443752
     M4: float = 0.00000595973
     M5: float = 0.0000489638
     Q1: float = 1.61645
     Q2: float = 0.000935347
-    Q3: float = 0.000479931
+    Q3: float = 0.00479931
     Q4: float = 0.00000492357
     Q5: float = 0.0000315093
     ionic_strength: float = 0.056
